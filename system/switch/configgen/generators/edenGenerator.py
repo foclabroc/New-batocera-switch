@@ -455,6 +455,17 @@ class EdenGenerator(Generator):
         yuzuConfig.set("UI", "check_for_updates_on_start", "false")
         yuzuConfig.set("UI", "check_for_updates_on_start\\default", "false")
 
+        #citron shortcuts
+        yuzuConfig.set("UI", "Shortcuts\\shortcuts\\size", "1")#adjust to number of shortcut sets
+        #exit citron
+        yuzuConfig.set("UI", "Shortcuts\\shortcuts\\1\\name", "Exit citron")
+        yuzuConfig.set("UI", "Shortcuts\\shortcuts\\1\\group", "Main Window")
+        yuzuConfig.set("UI", "Shortcuts\\shortcuts\\1\\keyseq", "Ctrl+Q")
+        yuzuConfig.set("UI", "Shortcuts\\shortcuts\\1\\controller_keyseq", "Y+ZL")
+        yuzuConfig.set("UI", "Shortcuts\\shortcuts\\1\\context", "1")
+        yuzuConfig.set("UI", "Shortcuts\\shortcuts\\1\\repeat", "false")
+
+
         # Interface language (citron)
         if system.isOptSet('yuzu_intlanguage'):
             yuzuConfig.set("UI", "Paths\\language", system.config["yuzu_intlanguage"])

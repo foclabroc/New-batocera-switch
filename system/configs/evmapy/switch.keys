@@ -6,7 +6,7 @@
                 "start"
             ],
             "type": "exec",
-            "target": ["batocera-mouse hide && killall -9 Ryujinx.AppImage Ryujinx ryujinx-emu.AppImage eden 2>/dev/null"]
+            "target": ["batocera-mouse hide && killall -9 Ryujinx.AppImage Ryujinx ryujinx-emu.AppImage eden eden-emu.Appimage citron citron-emu.Appimage 2>/dev/null"]
         },
         {
             "trigger": ["start"],
