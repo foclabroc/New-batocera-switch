@@ -56,7 +56,7 @@ batocera-mouse show
 
 cd /userdata/system/switch/appimages/
 chmod +x /userdata/system/switch/appimages/*.AppImage 2>/dev/null
-./eden-emu.AppImage
+./ryujinx-emu.AppImage
 batocera-mouse hide
 
 

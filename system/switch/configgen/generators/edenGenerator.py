@@ -283,11 +283,13 @@ class EdenGenerator(Generator):
         os.chmod("/userdata/system/switch/appimages/"+emulator+".AppImage", st.st_mode | stat.S_IEXEC)
 
         #Create Keys Folder
-        mkdir_if_not_exists(CONFIGS / "yuzu")
+        mkdir_if_not_exists(Path("/userdata/system/configs/yuzu"))
         mkdir_if_not_exists(Path("/userdata/system/configs/yuzu/nand"))
         mkdir_if_not_exists(Path("/userdata/system/configs/yuzu/nand/system"))
         mkdir_if_not_exists(Path("/userdata/system/configs/yuzu/nand/system/Contents"))
 
+        #Link Yuzu firmware/key folder
+        #KEY-------
         if os.path.exists("/userdata/system/configs/yuzu/keys"):
             if not os.path.islink("/userdata/system/configs/yuzu/keys"):
                 shutil.rmtree("/userdata/system/configs/yuzu/keys")
@@ -299,7 +301,7 @@ class EdenGenerator(Generator):
                     os.symlink("/userdata/bios/switch/keys_yuzu", "/userdata/system/configs/yuzu/keys")
         else:
             os.symlink("/userdata/bios/switch/keys_yuzu", "/userdata/system/configs/yuzu/keys")
-
+        #FIRMWARE-------
         if os.path.exists("/userdata/system/configs/yuzu/nand/system/Contents/registered"):
             if not os.path.islink("/userdata/system/configs/yuzu/nand/system/Contents/registered"):
                 shutil.rmtree("/userdata/system/configs/yuzu/nand/system/Contents/registered")
@@ -313,7 +315,7 @@ class EdenGenerator(Generator):
             os.symlink("/userdata/bios/switch/firmware_yuzu", "/userdata/system/configs/yuzu/nand/system/Contents/registered")
 
         #Create OS Saves folder
-        mkdir_if_not_exists(SAVES / "/yuzu")
+        mkdir_if_not_exists(Path("/userdata/save/yuzu"))
 
         #Link Yuzu App Directory to /system/configs/yuzu
         mkdir_if_not_exists(Path("/userdata/system/.local"))
@@ -451,7 +453,15 @@ class EdenGenerator(Generator):
         yuzuConfig.set("UI", "enable_discord_presence\\default", "false")
 
         yuzuConfig.set("UI", "check_for_updates_on_start", "false")
-        yuzuConfig.set("UI", "check_for_updates_on_start\default", "false")
+        yuzuConfig.set("UI", "check_for_updates_on_start\\default", "false")
+
+        # Interface language (citron)
+        if system.isOptSet('yuzu_intlanguage'):
+            yuzuConfig.set("UI", "Paths\\language", system.config["yuzu_intlanguage"])
+            yuzuConfig.set("UI", "Paths\\language\\default", "false")
+        else:
+            yuzuConfig.set("UI", "Paths\\language", "en")
+            yuzuConfig.set("UI", "Paths\\language\\default", "true")
 
         # Single Window Mode
         if system.isOptSet('single_window'):

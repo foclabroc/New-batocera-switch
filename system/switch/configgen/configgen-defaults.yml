@@ -8,7 +8,7 @@ default:
     smooth:         true
     rewind:         false
     bezel:          default
-    forceNoBezel:   false
+    forceNoBezel:   true
 
 switch:
   emulator: eden-emu
@@ -16,3 +16,8 @@ switch:
   options:
     forceNoBezel: true
     hud_support: true
+  emulator: ryujinx-emu
+  core:     ryujinx-emu
+  options:
+    forceNoBezel: true
+    hud_support: false

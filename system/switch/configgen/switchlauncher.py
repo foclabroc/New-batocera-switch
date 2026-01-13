@@ -28,8 +28,8 @@ def _new_get_generator(emulator: str):
         return EdenGenerator()
 
     if emulator == 'ryujinx-emu':
-        from generators.ryujinxGenerator import RyujinxMainlineGenerator
-        return RyujinxMainlineGenerator()
+        from generators.ryujinxGenerator import RyujinxGenerator
+        return RyujinxGenerator()
 
     #fallback to batocera generators
     return get_generator(emulator)
