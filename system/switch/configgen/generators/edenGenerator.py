@@ -156,55 +156,63 @@ def detect_bus_from_hidraw(hidraw_path: str):
 
     return bus_prefix[2:]
 
-def detect_device():
-    # 1) DMI product name
-    try:
-        with open("/sys/class/dmi/id/product_name", "r") as f:
-            name = f.read().strip()
-            lname = name.lower()
+# def detect_device():
+    # # 1) DMI product name
+    # try:
+        # with open("/sys/class/dmi/id/product_name", "r") as f:
+            # name = f.read().strip()
+            # lname = name.lower()
 
-            if lname in ["jupiter", "galileo"] or "steam deck" in lname:
-                return True, name
+            # if lname in ["jupiter", "galileo"] or "steam deck" in lname:
+                # return True, name
 
-            # Machine connue mais pas Steam Deck
-            return False, name
-    except:
-        pass
+            # # Machine connue mais pas Steam Deck
+            # return False, name
+    # except:
+        # pass
 
-    # 2) USB Vendor ID fallback (Valve = 28de)
-    try:
-        for dev in os.listdir("/sys/bus/usb/devices"):
-            vid_path = f"/sys/bus/usb/devices/{dev}/idVendor"
-            if os.path.exists(vid_path):
-                with open(vid_path, "r") as f:
-                    if f.read().strip().lower() == "28de":
-                        return True, "Valve USB device"
-    except:
-        pass
+    # # 2) USB Vendor ID fallback (Valve = 28de)
+    # try:
+        # for dev in os.listdir("/sys/bus/usb/devices"):
+            # vid_path = f"/sys/bus/usb/devices/{dev}/idVendor"
+            # if os.path.exists(vid_path):
+                # with open(vid_path, "r") as f:
+                    # if f.read().strip().lower() == "28de":
+                        # return True, "Valve USB device"
+    # except:
+        # pass
 
-    return False, "Unknown device"
+    # return False, "Unknown device"
 
 def list_sdl_gamepads(sdlversion):
 
-    is_sd, devname = detect_device()
+    # is_sd, devname = detect_device()
 
-    if is_sd:
-        # Steam Deck = evdev + hidraw ONLY
-        os.environ["SDL_JOYSTICK_HIDAPI"] = "0"
-        os.environ["SDL_JOYSTICK_RAWINPUT"] = "0"
-        switch_log(f"Steam Deck detected: {devname}")
-        switch_log("Set --> SDL_JOYSTICK_HIDAPI=0 and SDL_JOYSTICK_RAWINPUT=0")
-    else:
-        # Tous les autres PC → HIDAPI natif
-        os.environ["SDL_JOYSTICK_HIDAPI"] = "1"
-        if "SDL_JOYSTICK_RAWINPUT" in os.environ:
-            del os.environ["SDL_JOYSTICK_RAWINPUT"]
+    # if is_sd:
+        # # Steam Deck = evdev + hidraw ONLY
+        # os.environ["SDL_JOYSTICK_HIDAPI"] = "0"
+        # os.environ["SDL_JOYSTICK_RAWINPUT"] = "0"
+        # switch_log(f"Steam Deck detected: {devname}")
+        # switch_log("Set --> SDL_JOYSTICK_HIDAPI=0 and SDL_JOYSTICK_RAWINPUT=0")
+    # else:
+        # # Tous les autres PC → HIDAPI natif
+        # os.environ["SDL_JOYSTICK_HIDAPI"] = "1"
+        # if "SDL_JOYSTICK_RAWINPUT" in os.environ:
+            # del os.environ["SDL_JOYSTICK_RAWINPUT"]
 
-        switch_log(f"Device detected: {devname}")
-        switch_log("Set SDL_JOYSTICK_HIDAPI=1")
+        # switch_log(f"Device detected: {devname}")
+        # switch_log("Set SDL_JOYSTICK_HIDAPI=1")
 
+    os.environ["SDL_JOYSTICK_HIDAPI"] = "1"
     os.environ["SDL_JOYSTICK_HIDAPI_XBOX"] = "0"
     os.environ["SDL_JOYSTICK_HIDAPI_XBOX_ONE"] = "0"
+    os.environ["SDL_JOYSTICK_HIDAPI_SWITCH"] = "0"
+    os.environ["SDL_JOYSTICK_HIDAPI_STEAMDECK"] = "0"
+    switch_log("Set --> SDL_JOYSTICK_HIDAPI=1")
+    switch_log("Set --> JOYSTICK_HIDAPI_XBOX=0")
+    switch_log("Set --> JOYSTICK_HIDAPI_XBOX_ONE=0")
+    switch_log("Set --> JOYSTICK_HIDAPI_SWITCH=0")
+    switch_log("Set --> JOYSTICK_HIDAPI_STEAMDECK=0")
 
     sdl2.SDL_ClearError()
     try:
