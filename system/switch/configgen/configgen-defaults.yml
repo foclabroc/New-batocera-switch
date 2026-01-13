@@ -1,0 +1,18 @@
+default:
+  emulator:
+  core:
+  options:
+    videomode:      default
+    ratio:          auto
+    video_threaded: false
+    smooth:         true
+    rewind:         false
+    bezel:          default
+    forceNoBezel:   false
+
+switch:
+  emulator: eden-emu
+  core:     eden-emu
+  options:
+    forceNoBezel: true
+    hud_support: true

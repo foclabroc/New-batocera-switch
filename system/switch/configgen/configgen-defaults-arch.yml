@@ -1,0 +1,10 @@
+default:
+  emulator:
+  core:
+  options:
+    hud_support: true
+
+switch:
+  emulator: eden-emu
+  core:     eden-emu
+ 
