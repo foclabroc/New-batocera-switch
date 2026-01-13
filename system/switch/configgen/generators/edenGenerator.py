@@ -48,6 +48,73 @@ def switch_log(msg):
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"{ts} [SWITCH-DEBUG] {msg}", flush=True)
 
+###START PAD DETECTION--SEE-ES_LAUNCH_STDOUT.LOG#######################################################################
+#######################################################################################################################
+def hidraw_get_guid(devpath):
+    try:
+        vid = pid = None
+        p = devpath
+        while p != "/" and p:
+            if os.path.exists(os.path.join(p, "idVendor")):
+                with open(os.path.join(p, "idVendor")) as f:
+                    vid = f.read().strip()
+                with open(os.path.join(p, "idProduct")) as f:
+                    pid = f.read().strip()
+                break
+            p = os.path.dirname(p)
+        if not vid or not pid:
+            return "00000000000000000000000000000000"
+        return f"{vid}{pid}000000000000000000000000"
+    except:
+        return "00000000000000000000000000000000"
+def list_hidraw_devices():
+    devices = []
+    for h in glob.glob("/sys/class/hidraw/hidraw*"):
+        dev = os.path.basename(h)
+        devpath = os.path.realpath(os.path.join(h, "device"))
+        # Nom humain
+        name = "unknown"
+        try:
+            with open(os.path.join(devpath, "uevent")) as f:
+                for line in f:
+                    if line.startswith("HID_NAME="):
+                        name = line.strip().split("=",1)[1]
+        except:
+            pass
+        # Bus USB / Bluetooth
+        bus = os.path.basename(devpath).split(":")[0]
+        guid = hidraw_get_guid(devpath)
+        devices.append({
+            "hidraw": f"/dev/{dev}",
+            "name": name,
+            "bus": bus,
+            "guid": guid
+        })
+    return devices
+def map_hidraw_to_evdev():
+    mapping = {}
+    for h in glob.glob("/sys/class/hidraw/hidraw*"):
+        hid = os.path.basename(h)
+        devpath = os.path.realpath(os.path.join(h, "device"))
+        for root, dirs, files in os.walk(devpath):
+            for d in dirs:
+                if d.startswith("event"):
+                    mapping[f"/dev/{hid}"] = f"/dev/input/{d}"
+    return mapping
+hidraws = list_hidraw_devices()
+hidmap = map_hidraw_to_evdev()
+for d in hidraws:
+    hid = d["hidraw"]
+    ev = hidmap.get(hid, "no evdev")
+
+    switch_log(f"[HID] {d['name']}")
+    switch_log(f"  hidraw = {hid}")
+    switch_log(f"  evdev  = {ev}")
+    switch_log(f"  bus    = {d['bus']}")
+    switch_log(f"  guid   = {d['guid']}")
+###END PAD DETECTION--SEE-ES_LAUNCH_STDOUT.LOG#########################################################################
+#######################################################################################################################
+
 def sdlmapping_to_controller(mapping, guid):
 
     sdl_to_batoinputmapping = {
@@ -535,16 +602,18 @@ class EdenGenerator(Generator):
         # Graphical backend
         if system.isOptSet('yuzu_backend'):
             yuzuConfig.set("Renderer", "backend", system.config["yuzu_backend"])
+            yuzuConfig.set("Renderer", "backend\\default", "false")
         else:
             yuzuConfig.set("Renderer", "backend", "0")
-        yuzuConfig.set("Renderer", "backend\\default", "false")
+            yuzuConfig.set("Renderer", "backend\\default", "true")
 
         # Async Shader compilation
         if system.isOptSet('async_shaders'):
             yuzuConfig.set("Renderer", "use_asynchronous_shaders", system.config["async_shaders"])
+            yuzuConfig.set("Renderer", "use_asynchronous_shaders\\default", "false")
         else:
-            yuzuConfig.set("Renderer", "use_asynchronous_shaders", "true")
-        yuzuConfig.set("Renderer", "use_asynchronous_shaders\\default", "false")
+            yuzuConfig.set("Renderer", "use_asynchronous_shaders", "false")
+            yuzuConfig.set("Renderer", "use_asynchronous_shaders\\default", "true")
 
         # Assembly shaders
         if system.isOptSet('shaderbackend'):
@@ -794,8 +863,8 @@ class EdenGenerator(Generator):
 
          if key in padInputs:
 
-             if emulator == "citron-emu" and key in ['left', 'right', 'up', 'down']:
-                 return ("hat:0,pad:0,direction:{},guid:{},port:{},engine:sdl").format(key, padGuid, port)
+             # if emulator == "citron-emu" and key in ['left', 'right', 'up', 'down']:
+                 # return ("hat:0,pad:0,direction:{},guid:{},port:{},engine:sdl").format(key, padGuid, port)
 
              input = padInputs[key]
 
