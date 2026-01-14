@@ -687,6 +687,14 @@ class EdenGenerator(Generator):
             yuzuConfig.set("Renderer", "scaling_filter", "1")
             yuzuConfig.set("Renderer", "scaling_filter\\default", "true")
 
+        # FSR Quality
+        if system.isOptSet('fsr_quality'):
+            yuzuConfig.set("Renderer", "fsr2_quality_mode", system.config["fsr_quality"])
+            yuzuConfig.set("Renderer", "fsr2_quality_mode\\default", "false")
+        else:
+            yuzuConfig.set("Renderer", "fsr2_quality_mode", "0")
+            yuzuConfig.set("Renderer", "fsr2_quality_mode\\default", "true")
+
         # Anti aliasing method
         if system.isOptSet('aliasing_method'):
             yuzuConfig.set("Renderer", "anti_aliasing", system.config["aliasing_method"])
