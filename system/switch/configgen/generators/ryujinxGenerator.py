@@ -62,6 +62,9 @@ class RyujinxGenerator(Generator):
         mkdir_if_not_exists(Path("/userdata/system/configs/Ryujinx/bis"))
         mkdir_if_not_exists(Path("/userdata/system/configs/Ryujinx/bis/system"))
         mkdir_if_not_exists(Path("/userdata/system/configs/Ryujinx/bis/system/Contents"))
+        mkdir_if_not_exists(Path("/userdata/system/configs/Ryujinx/bis/user"))
+        mkdir_if_not_exists(Path("/userdata/saves/switch"))
+        mkdir_if_not_exists(Path("/userdata/saves/switch/ryujinx"))
 
         #Link Ryujinx firmware/key folder
         #KEY-------
@@ -76,6 +79,19 @@ class RyujinxGenerator(Generator):
                     os.symlink("/userdata/bios/switch/keys", "/userdata/system/configs/Ryujinx/system")
         else:
             os.symlink("/userdata/bios/switch/keys", "/userdata/system/configs/Ryujinx/system")
+
+        # #USER SAVE-------
+        if os.path.exists("/userdata/system/configs/Ryujinx/bis/user"):
+            if not os.path.islink("/userdata/system/configs/Ryujinx/bis/user"):
+                shutil.rmtree("/userdata/system/configs/Ryujinx/bis/user")
+                os.symlink("/userdata/saves/switch/ryujinx", "/userdata/system/configs/Ryujinx/bis/user")
+            else:
+                current_target = os.readlink("/userdata/system/configs/Ryujinx/bis/user")
+                if current_target != "/userdata/saves/switch/ryujinx":
+                    os.unlink("/userdata/saves/switch/ryujinx")
+                    os.symlink("/userdata/saves/switch/ryujinx", "/userdata/system/configs/Ryujinx/bis/user")
+        else:
+            os.symlink("/userdata/saves/switch/ryujinx", "/userdata/system/configs/Ryujinx/bis/user")
         # #FIRMWARE-------
         # if os.path.exists("/userdata/system/configs/Ryujinx/bis/system/Contents/registered"):
             # if not os.path.islink("/userdata/system/configs/Ryujinx/bis/system/Contents/registered"):
