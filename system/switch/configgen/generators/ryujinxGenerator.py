@@ -61,12 +61,16 @@ class RyujinxGenerator(Generator):
         #Create Keys Folder
         mkdir_if_not_exists(Path("/userdata/system/configs/Ryujinx/bis"))
         mkdir_if_not_exists(Path("/userdata/system/configs/Ryujinx/bis/system"))
+        mkdir_if_not_exists(Path("/userdata/system/configs/Ryujinx/bis/system/save"))
         mkdir_if_not_exists(Path("/userdata/system/configs/Ryujinx/bis/system/Contents"))
         mkdir_if_not_exists(Path("/userdata/system/configs/Ryujinx/bis/user"))
         mkdir_if_not_exists(Path("/userdata/saves/switch"))
         mkdir_if_not_exists(Path("/userdata/saves/switch/ryujinx"))
+        mkdir_if_not_exists(Path("/userdata/saves/switch/ryujinx/save"))
+        mkdir_if_not_exists(Path("/userdata/saves/switch/ryujinx/save/save_user"))
+        mkdir_if_not_exists(Path("/userdata/saves/switch/ryujinx/save/save_system"))
 
-        #Link Ryujinx firmware/key folder
+        #Link Ryujinx key folder
         #KEY-------
         if os.path.exists("/userdata/system/configs/Ryujinx/system"):
             if not os.path.islink("/userdata/system/configs/Ryujinx/system"):
@@ -80,30 +84,32 @@ class RyujinxGenerator(Generator):
         else:
             os.symlink("/userdata/bios/switch/keys", "/userdata/system/configs/Ryujinx/system")
 
-        # #USER SAVE-------
+        #Link Ryujinx User save folder (bis/user)/(bis/system/save)
+        # #USER SAVE (bis/user)-------
         if os.path.exists("/userdata/system/configs/Ryujinx/bis/user"):
             if not os.path.islink("/userdata/system/configs/Ryujinx/bis/user"):
                 shutil.rmtree("/userdata/system/configs/Ryujinx/bis/user")
-                os.symlink("/userdata/saves/switch/ryujinx", "/userdata/system/configs/Ryujinx/bis/user")
+                os.symlink("/userdata/saves/switch/ryujinx/save/save_user", "/userdata/system/configs/Ryujinx/bis/user")
             else:
                 current_target = os.readlink("/userdata/system/configs/Ryujinx/bis/user")
-                if current_target != "/userdata/saves/switch/ryujinx":
-                    os.unlink("/userdata/saves/switch/ryujinx")
-                    os.symlink("/userdata/saves/switch/ryujinx", "/userdata/system/configs/Ryujinx/bis/user")
+                if current_target != "/userdata/saves/switch/ryujinx/save/save_user":
+                    os.unlink("/userdata/saves/switch/ryujinx/save/save_user")
+                    os.symlink("/userdata/saves/switch/ryujinx/save/save_user", "/userdata/system/configs/Ryujinx/bis/user")
         else:
-            os.symlink("/userdata/saves/switch/ryujinx", "/userdata/system/configs/Ryujinx/bis/user")
-        # #FIRMWARE-------
-        # if os.path.exists("/userdata/system/configs/Ryujinx/bis/system/Contents/registered"):
-            # if not os.path.islink("/userdata/system/configs/Ryujinx/bis/system/Contents/registered"):
-                # shutil.rmtree("/userdata/system/configs/Ryujinx/bis/system/Contents/registered")
-                # os.symlink("/userdata/bios/switch/firmware_ryujinx", "/userdata/system/configs/Ryujinx/bis/system/Contents/registered")
-            # else:
-                # current_target = os.readlink("/userdata/system/configs/Ryujinx/bis/system/Contents/registered")
-                # if current_target != "/userdata/bios/switch/firmware_ryujinx":
-                    # os.unlink("/userdata/system/configs/Ryujinx/bis/system/Contents/registered")
-                    # os.symlink("/userdata/bios/switch/firmware_ryujinx", "/userdata/system/configs/Ryujinx/bis/system/Contents/registered")
-        # else:
-            # os.symlink("/userdata/bios/switch/firmware_ryujinx", "/userdata/system/configs/Ryujinx/bis/system/Contents/registered")
+            os.symlink("/userdata/saves/switch/ryujinx/save/save_user", "/userdata/system/configs/Ryujinx/bis/user")
+
+        # #USER SAVE (bis/system/save)-------
+        if os.path.exists("/userdata/system/configs/Ryujinx/bis/system/save"):
+            if not os.path.islink("/userdata/system/configs/Ryujinx/bis/system/save"):
+                shutil.rmtree("/userdata/system/configs/Ryujinx/bis/system/save")
+                os.symlink("/userdata/saves/switch/ryujinx/save/save_system", "/userdata/system/configs/Ryujinx/bis/system/save")
+            else:
+                current_target = os.readlink("/userdata/system/configs/Ryujinx/bis/system/save")
+                if current_target != "/userdata/saves/switch/ryujinx/save/save_system":
+                    os.unlink("/userdata/saves/switch/ryujinx/save/save_system")
+                    os.symlink("/userdata/saves/switch/ryujinx/save/save_system", "/userdata/system/configs/Ryujinx/bis/system/save")
+        else:
+            os.symlink("/userdata/saves/switch/ryujinx/save/save_system", "/userdata/system/configs/Ryujinx/bis/system/save")
 
 
         RyujinxConfig = Path('/userdata/system/configs/Ryujinx/Config.json')
