@@ -10,11 +10,10 @@ import sys
 import json
 import stat
 import uuid
-from shutil import copyfile
 
+from shutil import copyfile
 from pathlib import Path
 from typing import TYPE_CHECKING
-
 from configgen import Command as Command
 from configgen.batoceraPaths import CONFIGS, HOME, ROMS, SAVES, CACHE, mkdir_if_not_exists
 from configgen.controller import generate_sdl_game_controller_config
@@ -45,7 +44,6 @@ class RyujinxGenerator(Generator):
 
     def generate(self, system, rom, playersControllers, metadata, guns, wheels, gameResolution):
 
-
         st = os.stat("/userdata/system/switch/appimages/ryujinx-emu.AppImage")
         os.chmod("/userdata/system/switch/appimages/ryujinx-emu.AppImage", st.st_mode | stat.S_IEXEC)
         st = os.stat("/userdata/system/switch/configgen/generators/detectvideo.sh")
@@ -58,7 +56,8 @@ class RyujinxGenerator(Generator):
         target = CONFIGS / "Ryujinx" / "Config.json.template"
         copyfile(template, target) 
 
-        #Create Keys Folder
+    #Create Folder
+        mkdir_if_not_exists(Path("/userdata/system/configs/Ryujinx/mods"))
         mkdir_if_not_exists(Path("/userdata/system/configs/Ryujinx/bis"))
         mkdir_if_not_exists(Path("/userdata/system/configs/Ryujinx/bis/system"))
         mkdir_if_not_exists(Path("/userdata/system/configs/Ryujinx/bis/system/save"))
@@ -69,8 +68,9 @@ class RyujinxGenerator(Generator):
         mkdir_if_not_exists(Path("/userdata/saves/switch/ryujinx/save"))
         mkdir_if_not_exists(Path("/userdata/saves/switch/ryujinx/save/save_user"))
         mkdir_if_not_exists(Path("/userdata/saves/switch/ryujinx/save/save_system"))
+        mkdir_if_not_exists(Path("/userdata/saves/switch/ryujinx/mods"))
 
-        #Link Ryujinx key folder
+    #Link Ryujinx key folder
         #KEY-------
         if os.path.exists("/userdata/system/configs/Ryujinx/system"):
             if not os.path.islink("/userdata/system/configs/Ryujinx/system"):
@@ -84,7 +84,7 @@ class RyujinxGenerator(Generator):
         else:
             os.symlink("/userdata/bios/switch/keys", "/userdata/system/configs/Ryujinx/system")
 
-        #Link Ryujinx User save folder (bis/user)/(bis/system/save)
+    #Link Ryujinx User save/mods folder (bis/user)/(bis/system/save)
         # #USER SAVE (bis/user)-------
         if os.path.exists("/userdata/system/configs/Ryujinx/bis/user"):
             if not os.path.islink("/userdata/system/configs/Ryujinx/bis/user"):
@@ -111,6 +111,18 @@ class RyujinxGenerator(Generator):
         else:
             os.symlink("/userdata/saves/switch/ryujinx/save/save_system", "/userdata/system/configs/Ryujinx/bis/system/save")
 
+        # #USER MODS (Ryujinx/mods)-------
+        if os.path.exists("/userdata/system/configs/Ryujinx/mods"):
+            if not os.path.islink("/userdata/system/configs/Ryujinx/mods"):
+                shutil.rmtree("/userdata/system/configs/Ryujinx/mods")
+                os.symlink("/userdata/saves/switch/ryujinx/mods", "/userdata/system/configs/Ryujinx/mods")
+            else:
+                current_target = os.readlink("/userdata/system/configs/Ryujinx/mods")
+                if current_target != "/userdata/saves/switch/ryujinx/mods":
+                    os.unlink("/userdata/saves/switch/ryujinx/mods")
+                    os.symlink("/userdata/saves/switch/ryujinx/mods", "/userdata/system/configs/Ryujinx/mods")
+        else:
+            os.symlink("/userdata/saves/switch/ryujinx/mods", "/userdata/system/configs/Ryujinx/mods")
 
         RyujinxConfig = Path('/userdata/system/configs/Ryujinx/Config.json')
         RyujinxConfigTemplate = str(CONFIGS) + '/Ryujinx/Config.json.template'
@@ -125,11 +137,9 @@ class RyujinxGenerator(Generator):
 
         environment = {
             "SDL_GAMECONTROLLERCONFIG": generate_sdl_game_controller_config(playersControllers),
-
             "DRI_PRIME": "1",
             "AMD_VULKAN_ICD": "RADV",
             "DISABLE_LAYER_AMD_SWITCHABLE_GRAPHICS_1": "1",
-
             "XDG_MENU_PREFIX": "batocera-",
             "XDG_CONFIG_DIRS": "/etc/xdg",
             "XDG_CURRENT_DESKTOP": "XFCE",
@@ -137,7 +147,6 @@ class RyujinxGenerator(Generator):
             "QT_FONT_DPI": "96",
             "QT_SCALE_FACTOR": "1",
             "GDK_SCALE": "1",
-
             "DOTNET_EnableAlternateStackCheck": "1",
             "XDG_CONFIG_HOME": "/userdata/system/configs",
             "XDG_CACHE_HOME": "/userdata/system/.cache",
@@ -159,6 +168,7 @@ class RyujinxGenerator(Generator):
         writelog("Controller Config before Playing: {}".format(generate_sdl_game_controller_config(playersControllers)))
 
         return Command.Command(array=commandArray, env=environment)
+
 
     def writeRyujinxConfig(RyujinxConfigFile, RyujinxConfigFileBefore, RyujinxConfigTemplateFile, system, playersControllers):
 
@@ -218,7 +228,6 @@ class RyujinxGenerator(Generator):
         else:
             data['enable_vsync'] = bool(1)
 
-
         data['language_code'] = str(getLangFromEnvironment())
         data['game_dirs'] = ["/userdata/roms/switch"]
 
@@ -272,7 +281,6 @@ class RyujinxGenerator(Generator):
                     rumble['weak_rumble'] = 1
                     rumble['enable_rumble'] = bool(1)
 
-
                     which_pad = "p" + str(int(controller.player_number)) + "_pad"
                     if ((system.isOptSet(which_pad) and ((system.config[which_pad] == "ProController") or (system.config[which_pad] == "JoyconPair")) ) or not system.isOptSet(which_pad)):
                         left_joycon_stick = {}
@@ -289,8 +297,6 @@ class RyujinxGenerator(Generator):
                         right_joycon_stick['invert_stick_y'] = bool(0)
                         right_joycon_stick['stick_button'] = "RightStick" 
 
-
-
                         left_joycon = {}
                         left_joycon['button_minus'] = "Back"
                         left_joycon['button_l'] = "LeftShoulder"
@@ -301,7 +307,6 @@ class RyujinxGenerator(Generator):
                         left_joycon['dpad_down'] = "DpadDown"
                         left_joycon['dpad_left'] = "DpadLeft"
                         left_joycon['dpad_right'] = "DpadRight"
-
 
                         right_joycon = {}
                         right_joycon['button_plus'] = "Start"
@@ -433,8 +438,6 @@ class RyujinxGenerator(Generator):
                         right_joycon_stick['invert_stick_y'] = bool(0)
                         right_joycon_stick['stick_button'] = "RightStick" 
 
-
-
                         left_joycon = {}
                         left_joycon['button_minus'] = "Back"
                         left_joycon['button_l'] = "LeftShoulder"
@@ -445,7 +448,6 @@ class RyujinxGenerator(Generator):
                         left_joycon['dpad_down'] = "DpadDown"
                         left_joycon['dpad_left'] = "DpadLeft"
                         left_joycon['dpad_right'] = "DpadRight"
-
 
                         right_joycon = {}
                         right_joycon['button_plus'] = "Start"
