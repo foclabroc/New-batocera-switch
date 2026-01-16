@@ -14,7 +14,6 @@ import glob
 import pathlib
 
 from shutil import copyfile
-
 from pathlib import Path
 from typing import TYPE_CHECKING
 from configgen.utils import vulkan
@@ -145,7 +144,6 @@ def sdlmapping_to_controller(mapping, guid):
         'guide':  'hotkey'
     }
 
-
     elements = mapping.split(',')
 
     current_controller = {
@@ -183,7 +181,6 @@ def sdlmapping_to_controller(mapping, guid):
 
             input = Input(name=logical_name, type=input_type, id=clean_value, value=1, code=0 )
             current_controller["inputs"][logical_name] = input
-
 
     return current_controller
 
@@ -264,7 +261,7 @@ def list_sdl_gamepads(sdlversion):
             buff[7] = b'0'
             guidstring = ((bytes(buff)).decode()).split('\x00',1)[0]
             joy_path = joystick.SDL_JoystickPathForIndex(i).decode()
-            
+
             #sdl3 have implemented bus type in hidraw guid, we still use old sdl2 for this script
             if 'hidraw' in joy_path and sdlversion == 3:
                 bustype = detect_bus_from_hidraw(joy_path)
@@ -275,7 +272,6 @@ def list_sdl_gamepads(sdlversion):
             pprint.pprint(mapping)
             eslog.debug(str(mapping))
             controller = sdlmapping_to_controller(str(mapping), guidstring)
-
             sdl_devices[joy_path] = controller
 
     sdl2.SDL_Quit()
@@ -314,9 +310,10 @@ class EdenGenerator(Generator):
         st = os.stat("/userdata/system/switch/appimages/"+emulator+".AppImage")
         os.chmod("/userdata/system/switch/appimages/"+emulator+".AppImage", st.st_mode | stat.S_IEXEC)
 
-        #Create Keys Folder
+        #Create Keys/Firmware Folder
         mkdir_if_not_exists(Path("/userdata/bios/switch"))
         mkdir_if_not_exists(Path("/userdata/bios/switch/keys"))
+        mkdir_if_not_exists(Path("/userdata/bios/switch/firmware"))
         mkdir_if_not_exists(Path("/userdata/system/configs/yuzu"))
         mkdir_if_not_exists(Path("/userdata/system/configs/yuzu/nand"))
         mkdir_if_not_exists(Path("/userdata/system/configs/yuzu/nand/system"))
@@ -362,7 +359,7 @@ class EdenGenerator(Generator):
 
         #Link Yuzu Config Directory to /system/configs/yuzu
         mkdir_if_not_exists(Path("/userdata/system/.config"))
-        
+
         #Remove .config/yuzu if it exists and isnt' a link
         if os.path.exists("/userdata/system/.config/"+emudir):
             if not os.path.islink("/userdata/system/.config/"+emudir):
@@ -394,22 +391,40 @@ class EdenGenerator(Generator):
         if not os.path.exists("/userdata/system/.cache/"+emudir+"/game_list"):
             st = os.symlink("/userdata/saves/yuzu/game_list","/userdata/system/.cache/"+emudir+"/game_list")
 
-        #Link YUZU save Directory to /userdata/saves/"emudir"
+        #Create Save/Mods Folder
         mkdir_if_not_exists(Path("/userdata/system/configs/yuzu/nand/user"))
         mkdir_if_not_exists(Path("/userdata/system/configs/yuzu/nand/user/save"))
+        mkdir_if_not_exists(Path("/userdata/system/configs/yuzu/load"))
         mkdir_if_not_exists(Path("/userdata/saves/switch"))
         mkdir_if_not_exists(Path("/userdata/saves/switch/eden_citron"))
+        mkdir_if_not_exists(Path("/userdata/saves/switch/eden_citron/save"))
+        mkdir_if_not_exists(Path("/userdata/saves/switch/eden_citron/mods"))
+
+        #Link YUZU SAVE Directory to /userdata/saves/eden_citron/save
         if os.path.exists("/userdata/system/configs/yuzu/nand/user/save"):
             if not os.path.islink("/userdata/system/configs/yuzu/nand/user/save"):
                 shutil.rmtree("/userdata/system/configs/yuzu/nand/user/save")
-                os.symlink("/userdata/saves/switch/eden_citron", "/userdata/system/configs/yuzu/nand/user/save")
+                os.symlink("/userdata/saves/switch/eden_citron/save", "/userdata/system/configs/yuzu/nand/user/save")
             else:
                 current_target = os.readlink("/userdata/system/configs/yuzu/nand/user/save")
-                if current_target != "/userdata/saves/switch/eden_citron":
+                if current_target != "/userdata/saves/switch/eden_citron/save":
                     os.unlink("/userdata/system/configs/yuzu/nand/user/save")
-                    os.symlink("/userdata/saves/switch/eden_citron", "/userdata/system/configs/yuzu/nand/user/save")
+                    os.symlink("/userdata/saves/switch/eden_citron/save", "/userdata/system/configs/yuzu/nand/user/save")
         else:
-            os.symlink("/userdata/saves/switch/eden_citron", "/userdata/system/configs/yuzu/nand/user/save")
+            os.symlink("/userdata/saves/switch/eden_citron/save", "/userdata/system/configs/yuzu/nand/user/save")
+
+        #Link YUZU MODS Directory to /userdata/saves/eden_citron/mods
+        if os.path.exists("/userdata/system/configs/yuzu/load"):
+            if not os.path.islink("/userdata/system/configs/yuzu/load"):
+                shutil.rmtree("/userdata/system/configs/yuzu/load")
+                os.symlink("/userdata/saves/switch/eden_citron/mods", "/userdata/system/configs/yuzu/load")
+            else:
+                current_target = os.readlink("/userdata/system/configs/yuzu/load")
+                if current_target != "/userdata/saves/switch/eden_citron/mods":
+                    os.unlink("/userdata/system/configs/yuzu/load")
+                    os.symlink("/userdata/saves/switch/eden_citron/mods", "/userdata/system/configs/yuzu/load")
+        else:
+            os.symlink("/userdata/saves/switch/eden_citron/mods", "/userdata/system/configs/yuzu/load")
 
         yuzuConfig = str(CONFIGS) + '/yuzu/qt-config.ini'
         yuzuConfigTemplate = '/userdata/system/switch/configgen/qt-config.ini.template'
@@ -436,17 +451,14 @@ class EdenGenerator(Generator):
                         "QT_QPA_PLATFORM": "xcb",
                         "USER":"root",
                         "LANG":"en_US.UTF-8",
-
         }
 
         return Command.Command(array=commandArray, env=environment)
 
 
-
     # @staticmethod
     def writeYuzuConfig(yuzuConfigFile, yuzuConfigTemplateFile, system, playersControllers, sdlversion, emulator):
         # pads
-
 
         yuzuButtonsMapping = {
              "button_a":      "a",
@@ -513,7 +525,6 @@ class EdenGenerator(Generator):
         yuzuConfig.set("UI", "Shortcuts\\shortcuts\\1\\controller_keyseq", "Y+ZL")
         yuzuConfig.set("UI", "Shortcuts\\shortcuts\\1\\context", "1")
         yuzuConfig.set("UI", "Shortcuts\\shortcuts\\1\\repeat", "false")
-
 
         # Interface language (citron)
         if system.isOptSet('yuzu_intlanguage'):
@@ -687,7 +698,6 @@ class EdenGenerator(Generator):
         # ASTC Texture Recompression
         if system.isOptSet('astc_recompression'):
 
-
             yuzuConfig.set("Renderer", "astc_recompression", system.config["astc_recompression"])
             yuzuConfig.set("Renderer", "astc_recompression\\default", "false")
             if system.config["astc_recompression"] == "0":
@@ -700,6 +710,7 @@ class EdenGenerator(Generator):
             yuzuConfig.set("Renderer", "async_astc", "false")
             yuzuConfig.set("Renderer", "async_astc\\default", "true")
 
+
     # Cpu Section
         if not yuzuConfig.has_section("Cpu"):
             yuzuConfig.add_section("Cpu")
@@ -711,6 +722,7 @@ class EdenGenerator(Generator):
         else:
             yuzuConfig.set("Cpu", "cpu_accuracy", "0")
             yuzuConfig.set("Cpu", "cpu_accuracy\\default", "true")
+
 
     # System section
         if not yuzuConfig.has_section("System"):
@@ -752,10 +764,10 @@ class EdenGenerator(Generator):
             yuzuConfig.set("System", "use_docked_mode", "1")
             yuzuConfig.set("System", "use_docked_mode\\default", "true")
 
+
     # controls section
         if not yuzuConfig.has_section("Controls"):
             yuzuConfig.add_section("Controls")
-
 
         if not system.isOptSet('yuzu_auto_controller_config') or system.config["yuzu_auto_controller_config"] != "0":
             #get the evdev->hidraw mapping
@@ -772,8 +784,6 @@ class EdenGenerator(Generator):
             for nplayer, pad in enumerate(playersControllers, start=0):
                 player_nb_str = "player_" + str(nplayer)
 
-                # pprint.pprint(pad, stream=sys.stderr)
-                # pprint.pprint(pad.device_path, stream=sys.stderr)
                 #if hidraw exist, replace the guid and use the provided mapping
                 if pad.device_path in evdev_hidraw:
                     hidraw_path = evdev_hidraw[pad.device_path]
@@ -797,10 +807,7 @@ class EdenGenerator(Generator):
                 else:
                     yuzuConfig.set("Controls", player_nb_str + "_type", 0)
 
-                # pprint.pprint(yuzuButtonsMapping, stream=sys.stderr)
-
                 for x in yuzuButtonsMapping:
-                    # pprint.pprint(yuzuButtonsMapping[x], stream=sys.stderr)
                     yuzuConfig.set("Controls", player_nb_str + "_" + x, '"{}"'.format(EdenGenerator.setButton(emulator, yuzuButtonsMapping[x], pad.guid, pad.inputs, guid_port[pad.guid])))
                 for x in yuzuAxisMapping:
                     yuzuConfig.set("Controls", player_nb_str + "_" + x, '"{}"'.format(EdenGenerator.setAxis(yuzuAxisMapping[x], pad.guid, pad.inputs, guid_port[pad.guid])))
@@ -822,11 +829,13 @@ class EdenGenerator(Generator):
                 for option, value in old_controls:
                     yuzuConfig.set("Controls", option, value)
 
+
     # telemetry section
         if not yuzuConfig.has_section("WebService"):
             yuzuConfig.add_section("WebService") 
         yuzuConfig.set("WebService", "enable_telemetry", "false")
         yuzuConfig.set("WebService", "enable_telemetry\\default", "false") 
+
 
     # Services section
         if not yuzuConfig.has_section("Services"):
@@ -851,7 +860,6 @@ class EdenGenerator(Generator):
     def setButton(emulator, key, padGuid, padInputs, port, padName=None):
 
         if key not in padInputs:
-            # log_stderr(f"[SETBUTTON] key={key} not in padInputs")
             return ""
 
         input = padInputs[key]
@@ -870,11 +878,6 @@ class EdenGenerator(Generator):
             "r3": 10,
         }
 
-        # log_stderr(
-            # f"[SETBUTTON] key={key} type={input.type} "
-            # f"id={input.id} value={input.value} code={input.code} guid={padGuid}"
-        # )
-
         is_xbox = (
             padGuid.startswith("060000005e04") or
             (padName and "xbox" in padName.lower())
@@ -892,30 +895,26 @@ class EdenGenerator(Generator):
                 )
             else:
                 button_id = input.id
-                # log_stderr(
-                    # f"[SETBUTTON] using native button id={button_id}"
-                # )
             mapping = (
                 f"button:{button_id},guid:{padGuid},port:{port},engine:sdl"
             )
-            # log_stderr(f"[SETBUTTON][FINAL] {mapping}")
+
             return mapping
 
         elif input.type == "hat":
             mapping = (
                 f"hat:0,pad:0,direction:{key},guid:{padGuid},port:{port},engine:sdl"
             )
-            # log_stderr(f"[SETBUTTON][FINAL] {mapping}")
+
             return mapping
 
         elif input.type == "axis":
             mapping = (
                 f"threshold:0.5,axis:{input.id},guid:{padGuid},port:{port},engine:sdl"
             )
-            #log_stderr(f"[SETBUTTON][FINAL] {mapping}")
+
             return mapping
 
-        # log_stderr(f"[SETBUTTON] unsupported input type={input.type}")
         return ""
 
     @staticmethod
@@ -943,7 +942,6 @@ class EdenGenerator(Generator):
              padinputx = padInputs["joystick2left"]
              if padinputx.id is not None:
                  inputx = padinputx.id
-
 
          if key == "joystick1" and "joystick1up" in padInputs:
              padinputy = padInputs["joystick1up"]
