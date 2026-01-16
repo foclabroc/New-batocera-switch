@@ -398,20 +398,36 @@ class EdenGenerator(Generator):
         mkdir_if_not_exists(Path("/userdata/saves/switch"))
         mkdir_if_not_exists(Path("/userdata/saves/switch/eden_citron"))
         mkdir_if_not_exists(Path("/userdata/saves/switch/eden_citron/save"))
+        mkdir_if_not_exists(Path("/userdata/saves/switch/eden_citron/save/save_user"))
+        mkdir_if_not_exists(Path("/userdata/saves/switch/eden_citron/save/save_system"))
         mkdir_if_not_exists(Path("/userdata/saves/switch/eden_citron/mods"))
+        mkdir_if_not_exists(Path("/userdata/system/configs/yuzu/nand/system/save"))
 
-        #Link YUZU SAVE Directory to /userdata/saves/eden_citron/save
+        #Link YUZU SAVE Directory to /userdata/saves/eden_citron/save_user
         if os.path.exists("/userdata/system/configs/yuzu/nand/user/save"):
             if not os.path.islink("/userdata/system/configs/yuzu/nand/user/save"):
                 shutil.rmtree("/userdata/system/configs/yuzu/nand/user/save")
-                os.symlink("/userdata/saves/switch/eden_citron/save", "/userdata/system/configs/yuzu/nand/user/save")
+                os.symlink("/userdata/saves/switch/eden_citron/save/save_user", "/userdata/system/configs/yuzu/nand/user/save")
             else:
                 current_target = os.readlink("/userdata/system/configs/yuzu/nand/user/save")
-                if current_target != "/userdata/saves/switch/eden_citron/save":
+                if current_target != "/userdata/saves/switch/eden_citron/save/save_user":
                     os.unlink("/userdata/system/configs/yuzu/nand/user/save")
-                    os.symlink("/userdata/saves/switch/eden_citron/save", "/userdata/system/configs/yuzu/nand/user/save")
+                    os.symlink("/userdata/saves/switch/eden_citron/save/save_user", "/userdata/system/configs/yuzu/nand/user/save")
         else:
-            os.symlink("/userdata/saves/switch/eden_citron/save", "/userdata/system/configs/yuzu/nand/user/save")
+            os.symlink("/userdata/saves/switch/eden_citron/save/save_user", "/userdata/system/configs/yuzu/nand/user/save")
+
+        #Link YUZU SYSTEM SAVE Directory to /userdata/saves/eden_citron/save_system
+        if os.path.exists("/userdata/system/configs/yuzu/nand/system/save"):
+            if not os.path.islink("/userdata/system/configs/yuzu/nand/system/save"):
+                shutil.rmtree("/userdata/system/configs/yuzu/nand/system/save")
+                os.symlink("/userdata/saves/switch/eden_citron/save/save_system", "/userdata/system/configs/yuzu/nand/system/save")
+            else:
+                current_target = os.readlink("/userdata/system/configs/yuzu/nand/system/save")
+                if current_target != "/userdata/saves/switch/eden_citron/save/save_system":
+                    os.unlink("/userdata/system/configs/yuzu/nand/system/save")
+                    os.symlink("/userdata/saves/switch/eden_citron/save/save_system", "/userdata/system/configs/yuzu/nand/system/save")
+        else:
+            os.symlink("/userdata/saves/switch/eden_citron/save/save_system", "/userdata/system/configs/yuzu/nand/system/save")
 
         #Link YUZU MODS Directory to /userdata/saves/eden_citron/mods
         if os.path.exists("/userdata/system/configs/yuzu/load"):
