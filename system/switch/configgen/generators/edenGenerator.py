@@ -402,6 +402,14 @@ class EdenGenerator(Generator):
         mkdir_if_not_exists(Path("/userdata/system/.cache"))
         mkdir_if_not_exists(Path("/userdata/system/" + cachedir))
 
+        if emudir == 'eden':
+            mkdir_if_not_exists(Path("/userdata/system/.cache/AppImage-Cache/" + emudir))
+            mkdir_if_not_exists(Path("/userdata/system/configs/" + emudir + "/shader"))
+            ensure_symlink(
+                "/userdata/system/configs/" + emudir + "/shader",
+                "/userdata/system/.cache/AppImage-Cache/" + emudir + "/shader"
+            )
+
         # #remove game_list if it exists and isn't a link
         # if os.path.exists("/userdata/system/.cache/"+emudir+"/game_list"):
             # if not os.path.islink("/userdata/system/.cache/"+emudir+"/game_list"):
@@ -516,6 +524,7 @@ class EdenGenerator(Generator):
                         "XDG_CONFIG_HOME":"/userdata/system/configs",
                         "XDG_DATA_HOME":"/userdata/system/configs",
                         "XDG_CACHE_HOME":"/userdata/system/.cache",
+
 
                         "QT_FONT_DPI":"96",
                         "QT_SCALE_FACTOR":"1",
