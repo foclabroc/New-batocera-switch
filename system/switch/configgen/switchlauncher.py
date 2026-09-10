@@ -27,10 +27,7 @@ def _log_selection(emulator: str) -> str:
 
 
 def _detect_batocera_version() -> int | None:
-    """Reprend la méthode utilisée ailleurs dans tes scripts d'install :
-    `batocera-es-swissknife --version` + extraction du numéro majeur en tête
-    de chaîne. Renvoie None si indisponible/illisible — dans ce cas on
-    retombe sur l'ancienne API par sécurité."""
+
     try:
         result = subprocess.run(
             ["batocera-es-swissknife", "--version"],
@@ -46,7 +43,7 @@ def _detect_batocera_version() -> int | None:
 
 
 def run_new_api() -> None:
-    """Batocera > 43.1 — archi batocera_launch. Testée et fonctionnelle en v44."""
+    """Batocera > 43.1."""
     import runpy
 
     ROM_PATH = rom
@@ -122,7 +119,7 @@ def run_new_api() -> None:
 
 
 def run_old_api() -> None:
-    """Batocera < 44 — ancienne archi configgen."""
+    """Batocera < 44."""
     import configgen
     from configgen.Emulator import _dict_merge, _load_defaults
     from configgen.emulatorlauncher import launch
