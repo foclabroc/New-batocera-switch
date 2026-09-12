@@ -1021,6 +1021,15 @@ class EdenGenerator(Generator):
             yuzuConfig.add_section("Services")
         yuzuConfig.set("Services", "bcat_backend", "none")
         yuzuConfig.set("Services", "bcat_backend\\default", "none")
+        #nextendo
+        yuzuConfig.set("Services", "enable_nextendo", "true")
+        yuzuConfig.set("Services", "enable_nextendo\\default", "false")
+
+    # Network section (nextendo)
+        if not yuzuConfig.has_section("Network"):
+            yuzuConfig.add_section("Network")
+        yuzuConfig.set("Network", "enable_nextendo", "true")
+        yuzuConfig.set("Network", "enable_nextendo\\default", "false")
 
         ### update the configuration file
         if not os.path.exists(os.path.dirname(yuzuConfigFile)):
