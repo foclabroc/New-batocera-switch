@@ -452,6 +452,10 @@ class RyujinxGenerator(Generator):
         else:
             data['graphics_backend'] = 'Vulkan'
 
+        if system.isOptSet('ryu_audio_backend'):
+            data['audio_backend'] = system.config["ryu_audio_backend"]
+        else:
+            data['audio_backend'] = 'OpenAl'
 
         # # Fullscreen mode
         # if system.isOptSet('fullscreen_mode'):
