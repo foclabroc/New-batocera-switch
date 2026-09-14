@@ -49,7 +49,7 @@
   "enable_ptc": true,
   "enable_low_power_ptc": false,
   "tick_scalar": 50,
-  "enable_internet_access": false,
+  "enable_internet_access": true,
   "enable_fs_integrity_checks": true,
   "fs_global_access_log_mode": 0,
   "audio_backend": "OpenAl",
@@ -74,8 +74,13 @@
     "sort_column_id": 0,
     "sort_ascending": false
   },
-  "game_dirs": [],
-  "autoload_dirs": [],
+  "game_dirs": [
+    "/userdata/roms/switch"
+  ],
+  "autoload_dirs": [
+    "/userdata/roms/switch_update/update/",
+    "/userdata/roms/switch_update/dlc/"
+  ],
   "shown_file_types": {
     "nsp": true,
     "pfs0": true,
@@ -84,18 +89,15 @@
     "nro": true,
     "nso": true
   },
-  "window_startup": {
-    "window_size_width": 2275,
-    "window_size_height": 1279,
+"window_startup": {
+    "window_size_width": 0,
+    "window_size_height": 0,
     "window_position_x": 0,
     "window_position_y": 0,
-    "window_maximized": false
+    "window_maximized": true
   },
   "language_code": "en_US",
   "base_style": "Dark",
-  "game_list_view_mode": 0,
-  "show_names": true,
-  "grid_size": 2,
   "application_sort": 0,
   "is_ascending_order": true,
   "start_fullscreen": true,

@@ -452,6 +452,10 @@ class RyujinxGenerator(Generator):
         else:
             data['graphics_backend'] = 'Vulkan'
 
+        if system.isOptSet('ryu_audio_backend'):
+            data['audio_backend'] = system.config["ryu_audio_backend"]
+        else:
+            data['audio_backend'] = 'OpenAl'
 
         # # Fullscreen mode
         # if system.isOptSet('fullscreen_mode'):
@@ -535,7 +539,11 @@ class RyujinxGenerator(Generator):
                     rumble = {}
                     rumble['strong_rumble'] = 1
                     rumble['weak_rumble'] = 1
-                    rumble['enable_rumble'] = bool(1)
+                    if system.isOptSet('ryu_enable_rumble'):
+                        rumble['enable_rumble'] = bool(int(system.config["ryu_enable_rumble"]))
+                    else:
+                        rumble['enable_rumble'] = bool(1)
+                    rumble['use_hdrumble'] = rumble['enable_rumble']
 
                     #Handle old settings that don't match above
                     left_joycon_stick = {}
