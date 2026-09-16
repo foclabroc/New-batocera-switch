@@ -959,8 +959,8 @@ class EdenGenerator(Generator):
                     guid_port[pad.guid] = guid_port[pad.guid] + 1
 
                 yuzuConfig.set("Controls", player_nb_str + "_type\\default", "false")
-                if system.isOptSet('p{}_pad'.format(nplayer)):
-                    yuzuConfig.set("Controls", player_nb_str + "_type", system.config["p{}_pad".format(nplayer)])
+                if system.isOptSet('p{}_pad'.format(nplayer + 1)):
+                    yuzuConfig.set("Controls", player_nb_str + "_type", system.config["p{}_pad".format(nplayer + 1)])
                 else:
                     yuzuConfig.set("Controls", player_nb_str + "_type", 0)
 
