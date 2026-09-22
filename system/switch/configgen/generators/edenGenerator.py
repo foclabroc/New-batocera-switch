@@ -594,12 +594,8 @@ class EdenGenerator(Generator):
         yuzuConfig.set("UI", "check_for_updates", "false")
         yuzuConfig.set("UI", "check_for_updates\\default", "false")
 
-        if emulator == "citron-emu":
-            yuzuConfig.set("UI", "UIGameList\\cache_game_list", "false")
-            yuzuConfig.set("UI", "UIGameList\\cache_game_list\\default", "false")
-        else:
-            yuzuConfig.set("UI", "UIGameList\\cache_game_list", "true")
-            yuzuConfig.set("UI", "UIGameList\\cache_game_list\\default", "true")
+        yuzuConfig.set("UI", "UIGameList\\cache_game_list", "true")
+        yuzuConfig.set("UI", "UIGameList\\cache_game_list\\default", "true")
 
         # Common external path (dlc/update)
         yuzuConfig.set("UI", "Paths\\external_content_dirs\\size", "2")
