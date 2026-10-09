@@ -86,8 +86,6 @@ def run_new_api() -> None:
         rom_name = os.path.basename(ROM_PATH)
         if rom_name == 'ryujinx_config.xci_config':
             emulator = 'ryujinx-emu'
-        print(f'[SWITCH] emulator={emulator}', file=sys.stderr)
-        print(f'[SWITCH] rom={rom_name}', file=sys.stderr)
         if emulator in YUZU_LIKE:
             return EdenGenerator()
         if emulator == 'ryujinx-emu':
