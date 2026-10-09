@@ -16,16 +16,18 @@ import pathlib
 from shutil import copyfile
 from pathlib import Path
 from typing import TYPE_CHECKING
-from configgen.utils import vulkan
-from configgen import Command as Command
-from configgen.batoceraPaths import CONFIGS, HOME, ROMS, SAVES, mkdir_if_not_exists
-from configgen.controller import generate_sdl_game_controller_config
-from configgen.generators.Generator import Generator
-try:
-    from configgen.utils.configparser import CaseSensitiveRawConfigParser
-except ImportError:
-    from batocera_common.configparser import CaseSensitiveRawConfigParser
-from configgen.input import Input, InputDict, InputMapping
+from batocera_common.configparser import CaseSensitiveRawConfigParser
+from batocera_common.dataclasses import cached_dataclass, cached_property
+from batocera_common.paths import CACHE, CONFIGS, HOME, ROMS, SAVES
+from batocera_launch.command import Command
+from batocera_launch.devices.controller import generate_sdl_game_controller_config
+from batocera_launch.devices.input import Input, InputDict, InputMapping
+from batocera_launch.emulator import Emulator
+from batocera_launch.types import HotkeysContext
+
+
+def mkdir_if_not_exists(path) -> None:
+    Path(path).mkdir(parents=True, exist_ok=True)
 from datetime import datetime
 from evdev import InputDevice, ecodes
 
@@ -38,8 +40,6 @@ from ctypes import create_string_buffer
 
 eslog = logging.getLogger(__name__)
 
-if TYPE_CHECKING:
-    from configgen.types import HotkeysContext
 
 class DictToObject:
     def __init__(self, dictionary):
@@ -309,20 +309,34 @@ def is_steamdeck():
 
     return False
 
-class EdenGenerator(Generator):
+@cached_dataclass
+class Eden(Emulator):
+    @property
+    def handles_bezels(self) -> bool:
+        return True
 
-    def getHotkeysContext(self) -> HotkeysContext:
+    @cached_property
+    def in_game_ratio(self) -> float:
+        return 16 / 9
+
+
+    @cached_property
+    def hotkeygen_context(self) -> HotkeysContext:
         return {
             "name": "switch-emu",
             "keys": { "exit": ["KEY_LEFTALT", "KEY_F4"]}
         }
 
-    def executionDirectory(self, config, rom):
-        return "/userdata/system/switch/appimages"
+    @property
+    def execution_path(self) -> Path | None:
+        return Path("/userdata/system/switch/appimages")
 
-    def generate(self, system, rom, playersControllers, metadata, guns, wheels, gameResolution):
+    async def configure(self) -> Command:
+        config = self.config
+        rom = self.rom
+        playersControllers = list(self.controllers)
 
-        emulator = system.config['emulator']
+        emulator = config.emulator
 
         if emulator == 'citron-emu':
             emudir = 'citron'
@@ -457,7 +471,7 @@ class EdenGenerator(Generator):
         yuzuConfig = str(CONFIGS) + '/yuzu/qt-config.ini'
         yuzuConfigTemplate = '/userdata/system/switch/configgen/qt-config.ini.template'
 
-        EdenGenerator.writeYuzuConfig(yuzuConfig, yuzuConfigTemplate, system, playersControllers, sdlversion, emulator)
+        Eden.writeYuzuConfig(yuzuConfig, yuzuConfigTemplate, config, playersControllers, sdlversion, emulator)
 
         # commandArray = ["./"+emulator+".AppImage", "-f",  "-g", rom ]
 
@@ -535,11 +549,11 @@ class EdenGenerator(Generator):
                         "LANG":"en_US.UTF-8",
         }
 
-        return Command.Command(array=commandArray, env=environment)
+        return Command(args=commandArray, env=environment)
 
 
-    # @staticmethod
-    def writeYuzuConfig(yuzuConfigFile, yuzuConfigTemplateFile, system, playersControllers, sdlversion, emulator):
+    @staticmethod
+    def writeYuzuConfig(yuzuConfigFile, yuzuConfigTemplateFile, config, playersControllers, sdlversion, emulator):
         # pads
 
         yuzuButtonsMapping = {
@@ -646,24 +660,24 @@ class EdenGenerator(Generator):
         yuzuConfig.set("UI", "Paths\\gamedirs\\size", "3")
 
         # Interface language (citron)
-        if system.isOptSet('yuzu_intlanguage'):
-            yuzuConfig.set("UI", "Paths\\language", system.config["yuzu_intlanguage"])
+        if ('yuzu_intlanguage' in config):
+            yuzuConfig.set("UI", "Paths\\language", config["yuzu_intlanguage"])
             yuzuConfig.set("UI", "Paths\\language\\default", "false")
         else:
             yuzuConfig.set("UI", "Paths\\language", "en")
             yuzuConfig.set("UI", "Paths\\language\\default", "true")
 
         # Single Window Mode
-        if system.isOptSet('single_window'):
-            yuzuConfig.set("UI", "singleWindowMode", system.config["single_window"])
+        if ('single_window' in config):
+            yuzuConfig.set("UI", "singleWindowMode", config["single_window"])
             yuzuConfig.set("UI", "singleWindowMode\\default", "false")
         else:
             yuzuConfig.set("UI", "singleWindowMode", "true")
             yuzuConfig.set("UI", "singleWindowMode\\default", "true")
 
         # User Profile select on boot
-        if system.isOptSet('user_profile'):
-            yuzuConfig.set("UI", "select_user_on_boot", system.config["user_profile"])
+        if ('user_profile' in config):
+            yuzuConfig.set("UI", "select_user_on_boot", config["user_profile"])
             yuzuConfig.set("UI", "select_user_on_boot\\default", "false")
         else:
             yuzuConfig.set("UI", "select_user_on_boot", "true")
@@ -684,16 +698,16 @@ class EdenGenerator(Generator):
             yuzuConfig.add_section("Core")
 
         # Multicore
-        if system.isOptSet('multicore'):
-            yuzuConfig.set("Core", "use_multi_core", system.config["multicore"])
+        if ('multicore' in config):
+            yuzuConfig.set("Core", "use_multi_core", config["multicore"])
             yuzuConfig.set("Core", "use_multi_core\\default", "false")
         else:
             yuzuConfig.set("Core", "use_multi_core", "true")
             yuzuConfig.set("Core", "use_multi_core\\default", "true")
 
         # Memory layout
-        if system.isOptSet('yuzu_memory_layout'):
-            yuzuConfig.set("Core", "memory_layout_mode", system.config["yuzu_memory_layout"])
+        if ('yuzu_memory_layout' in config):
+            yuzuConfig.set("Core", "memory_layout_mode", config["yuzu_memory_layout"])
             yuzuConfig.set("Core", "memory_layout_mode\\default", "false")
         else:
             yuzuConfig.set("Core", "memory_layout_mode", "0")
@@ -708,8 +722,8 @@ class EdenGenerator(Generator):
             yuzuConfig.set("Renderer", "extended_dynamic_state", "0")
             yuzuConfig.set("Renderer", "extended_dynamic_state\\default", "false")
         # Aspect ratio
-        if system.isOptSet('yuzu_ratio'):
-            yuzuConfig.set("Renderer", "aspect_ratio", system.config["yuzu_ratio"])
+        if ('yuzu_ratio' in config):
+            yuzuConfig.set("Renderer", "aspect_ratio", config["yuzu_ratio"])
             yuzuConfig.set("Renderer", "aspect_ratio\\default", "false")
         else:
             yuzuConfig.set("Renderer", "aspect_ratio", "0")
@@ -719,80 +733,80 @@ class EdenGenerator(Generator):
         if emulator == "citron-emu":
             yuzuConfig.set("Renderer", "backend", "0")
             yuzuConfig.set("Renderer", "backend\\default", "true")
-        elif system.isOptSet('yuzu_backend'):
-            yuzuConfig.set("Renderer", "backend", system.config["yuzu_backend"])
+        elif ('yuzu_backend' in config):
+            yuzuConfig.set("Renderer", "backend", config["yuzu_backend"])
             yuzuConfig.set("Renderer", "backend\\default", "false")
         else:
             yuzuConfig.set("Renderer", "backend", "1")
             yuzuConfig.set("Renderer", "backend\\default", "true")
 
         # Async Shader compilation
-        if system.isOptSet('async_shaders'):
-            yuzuConfig.set("Renderer", "use_asynchronous_shaders", system.config["async_shaders"])
+        if ('async_shaders' in config):
+            yuzuConfig.set("Renderer", "use_asynchronous_shaders", config["async_shaders"])
             yuzuConfig.set("Renderer", "use_asynchronous_shaders\\default", "false")
         else:
             yuzuConfig.set("Renderer", "use_asynchronous_shaders", "false")
             yuzuConfig.set("Renderer", "use_asynchronous_shaders\\default", "true")
 
         # Assembly shaders
-        if system.isOptSet('shaderbackend'):
-            yuzuConfig.set("Renderer", "shader_backend", system.config["shaderbackend"])
+        if ('shaderbackend' in config):
+            yuzuConfig.set("Renderer", "shader_backend", config["shaderbackend"])
             yuzuConfig.set("Renderer", "shader_backend\\default", "false")
         else:
             yuzuConfig.set("Renderer", "shader_backend", "0")
             yuzuConfig.set("Renderer", "shader_backend\\default", "true")
 
         # Async Gpu Emulation
-        if system.isOptSet('async_gpu'):
-            yuzuConfig.set("Renderer", "use_asynchronous_gpu_emulation", system.config["async_gpu"])
+        if ('async_gpu' in config):
+            yuzuConfig.set("Renderer", "use_asynchronous_gpu_emulation", config["async_gpu"])
             yuzuConfig.set("Renderer", "use_asynchronous_gpu_emulation\\default", "false")
         else:
             yuzuConfig.set("Renderer", "use_asynchronous_gpu_emulation", "true")
             yuzuConfig.set("Renderer", "use_asynchronous_gpu_emulation\\default", "true")
 
         # NVDEC Emulation
-        if system.isOptSet('nvdec_emu'):
-            yuzuConfig.set("Renderer", "nvdec_emulation", system.config["nvdec_emu"])
+        if ('nvdec_emu' in config):
+            yuzuConfig.set("Renderer", "nvdec_emulation", config["nvdec_emu"])
             yuzuConfig.set("Renderer", "nvdec_emulation\\default", "false")
         else:
             yuzuConfig.set("Renderer", "nvdec_emulation", "2")
             yuzuConfig.set("Renderer", "nvdec_emulation\\default", "true")
 
         # Gpu Accuracy
-        if system.isOptSet('gpuaccuracy'):
-            yuzuConfig.set("Renderer", "gpu_accuracy", system.config["gpuaccuracy"])
+        if ('gpuaccuracy' in config):
+            yuzuConfig.set("Renderer", "gpu_accuracy", config["gpuaccuracy"])
         else:
             yuzuConfig.set("Renderer", "gpu_accuracy", "1")
         yuzuConfig.set("Renderer", "gpu_accuracy\\default", "false")
 
         # Vsync
-        if system.isOptSet('vsync'):
-            yuzuConfig.set("Renderer", "use_vsync", system.config["vsync"])
+        if ('vsync' in config):
+            yuzuConfig.set("Renderer", "use_vsync", config["vsync"])
             yuzuConfig.set("Renderer", "use_vsync\\default", "false")
-            if system.config["vsync"] == "2":
+            if config["vsync"] == "2":
                 yuzuConfig.set("Renderer", "use_vsync\\default", "true")
         else:
             yuzuConfig.set("Renderer", "use_vsync", "1")
             yuzuConfig.set("Renderer", "use_vsync\\default", "false")
 
         # Gpu cache garbage collection
-        if system.isOptSet('gpu_cache_gc'):
-            yuzuConfig.set("Renderer", "use_caches_gc", system.config["gpu_cache_gc"])
+        if ('gpu_cache_gc' in config):
+            yuzuConfig.set("Renderer", "use_caches_gc", config["gpu_cache_gc"])
         else:
             yuzuConfig.set("Renderer", "use_caches_gc", "false")
         yuzuConfig.set("Renderer", "use_caches_gc\\default", "false")
 
         # Max anisotropy
-        if system.isOptSet('anisotropy'):
-            yuzuConfig.set("Renderer", "max_anisotropy", system.config["anisotropy"])
+        if ('anisotropy' in config):
+            yuzuConfig.set("Renderer", "max_anisotropy", config["anisotropy"])
             yuzuConfig.set("Renderer", "max_anisotropy\\default", "false")
         else:
             yuzuConfig.set("Renderer", "max_anisotropy", "0")
             yuzuConfig.set("Renderer", "max_anisotropy\\default", "true")
 
         # Fullscreen mode
-        if system.isOptSet('fullscreen_mode'):
-            yuzuConfig.set("Renderer", "fullscreen_mode", system.config["fullscreen_mode"])
+        if ('fullscreen_mode' in config):
+            yuzuConfig.set("Renderer", "fullscreen_mode", config["fullscreen_mode"])
             yuzuConfig.set("Renderer", "fullscreen_mode\\default", "false")
         else:
             yuzuConfig.set("Renderer", "fullscreen_mode", "1")
@@ -800,61 +814,61 @@ class EdenGenerator(Generator):
 
         if emulator == "citron-emu":
             # Resolution scaler
-            if system.isOptSet('citron_resolution_scale'):
-                print ("Use Resolution Scale for Citron:",system.config["citron_resolution_scale"], file=sys.stderr)
-                yuzuConfig.set("Renderer", "resolution_setup", system.config["citron_resolution_scale"])
+            if ('citron_resolution_scale' in config):
+                print ("Use Resolution Scale for Citron:",config["citron_resolution_scale"], file=sys.stderr)
+                yuzuConfig.set("Renderer", "resolution_setup", config["citron_resolution_scale"])
                 yuzuConfig.set("Renderer", "resolution_setup\\default", "false")
             else:
                 yuzuConfig.set("Renderer", "resolution_setup", "3")
                 yuzuConfig.set("Renderer", "resolution_setup\\default", "true")
         else:        
             # Resolution scaler
-            if system.isOptSet('resolution_scale'):
-                print ("Use Resolution Scale for Eden :",system.config["resolution_scale"], file=sys.stderr)
-                yuzuConfig.set("Renderer", "resolution_setup", system.config["resolution_scale"])
+            if ('resolution_scale' in config):
+                print ("Use Resolution Scale for Eden :",config["resolution_scale"], file=sys.stderr)
+                yuzuConfig.set("Renderer", "resolution_setup", config["resolution_scale"])
                 yuzuConfig.set("Renderer", "resolution_setup\\default", "false")
             else:
                 yuzuConfig.set("Renderer", "resolution_setup", "2")
                 yuzuConfig.set("Renderer", "resolution_setup\\default", "true")
 
         # Scaling filter
-        if system.isOptSet('scale_filter'):
-            yuzuConfig.set("Renderer", "scaling_filter", system.config["scale_filter"])
+        if ('scale_filter' in config):
+            yuzuConfig.set("Renderer", "scaling_filter", config["scale_filter"])
             yuzuConfig.set("Renderer", "scaling_filter\\default", "false")
         else:
             yuzuConfig.set("Renderer", "scaling_filter", "1")
             yuzuConfig.set("Renderer", "scaling_filter\\default", "true")
 
         # FSR Quality
-        if system.isOptSet('fsr_quality'):
-            yuzuConfig.set("Renderer", "fsr2_quality_mode", system.config["fsr_quality"])
+        if ('fsr_quality' in config):
+            yuzuConfig.set("Renderer", "fsr2_quality_mode", config["fsr_quality"])
             yuzuConfig.set("Renderer", "fsr2_quality_mode\\default", "false")
         else:
             yuzuConfig.set("Renderer", "fsr2_quality_mode", "0")
             yuzuConfig.set("Renderer", "fsr2_quality_mode\\default", "true")
 
         # Anti aliasing method
-        if system.isOptSet('aliasing_method'):
-            yuzuConfig.set("Renderer", "anti_aliasing", system.config["aliasing_method"])
+        if ('aliasing_method' in config):
+            yuzuConfig.set("Renderer", "anti_aliasing", config["aliasing_method"])
             yuzuConfig.set("Renderer", "anti_aliasing\\default", "false")
         else:
             yuzuConfig.set("Renderer", "anti_aliasing", "0")
             yuzuConfig.set("Renderer", "anti_aliasing\\default", "true")
 
         #ASTC Decoding Method
-        if system.isOptSet('accelerate_astc'):
-            yuzuConfig.set("Renderer", "accelerate_astc", system.config["accelerate_astc"])
+        if ('accelerate_astc' in config):
+            yuzuConfig.set("Renderer", "accelerate_astc", config["accelerate_astc"])
             yuzuConfig.set("Renderer", "accelerate_astc\\default", "false")
         else:
             yuzuConfig.set("Renderer", "accelerate_astc", "1")
             yuzuConfig.set("Renderer", "accelerate_astc\\default", "true")
 
         # ASTC Texture Recompression
-        if system.isOptSet('astc_recompression'):
+        if ('astc_recompression' in config):
 
-            yuzuConfig.set("Renderer", "astc_recompression", system.config["astc_recompression"])
+            yuzuConfig.set("Renderer", "astc_recompression", config["astc_recompression"])
             yuzuConfig.set("Renderer", "astc_recompression\\default", "false")
-            if system.config["astc_recompression"] == "0":
+            if config["astc_recompression"] == "0":
                 yuzuConfig.set("Renderer", "use_vsync\\default", "true")
             yuzuConfig.set("Renderer", "async_astc", "false")
             yuzuConfig.set("Renderer", "async_astc\\default", "true")
@@ -870,8 +884,8 @@ class EdenGenerator(Generator):
             yuzuConfig.add_section("Cpu")
 
         # Cpu Accuracy
-        if system.isOptSet('cpuaccuracy'):
-            yuzuConfig.set("Cpu", "cpu_accuracy", system.config["cpuaccuracy"])
+        if ('cpuaccuracy' in config):
+            yuzuConfig.set("Cpu", "cpu_accuracy", config["cpuaccuracy"])
             yuzuConfig.set("Cpu", "cpu_accuracy\\default", "false")
         else:
             yuzuConfig.set("Cpu", "cpu_accuracy", "0")
@@ -883,35 +897,35 @@ class EdenGenerator(Generator):
             yuzuConfig.add_section("System")
 
         # Language
-        if system.isOptSet('language'):
-            yuzuConfig.set("System", "language_index", system.config["language"])
+        if ('language' in config):
+            yuzuConfig.set("System", "language_index", config["language"])
             yuzuConfig.set("System", "language_index\\default", "false")
         else:
             yuzuConfig.set("System", "language_index", "1")
             yuzuConfig.set("System", "language_index\\default", "true")
 
         # Audio Mode
-        if system.isOptSet('audio_mode'):
-            yuzuConfig.set("System", "sound_index", system.config["audio_mode"])
+        if ('audio_mode' in config):
+            yuzuConfig.set("System", "sound_index", config["audio_mode"])
             yuzuConfig.set("System", "sound_index\\default", "false")
         else:
             yuzuConfig.set("System", "sound_index", "1")
             yuzuConfig.set("System", "sound_index\\default", "true")
 
         # Region
-        if system.isOptSet('region'):
-            yuzuConfig.set("System", "region_index", system.config["region"])
+        if ('region' in config):
+            yuzuConfig.set("System", "region_index", config["region"])
             yuzuConfig.set("System", "region_index\\default", "false")
         else:
             yuzuConfig.set("System", "region_index", "1")
             yuzuConfig.set("System", "region_index\\default", "true")
 
         # Dock Mode
-        if system.isOptSet('dock_mode'):
-            if system.config["dock_mode"] == "1":
+        if ('dock_mode' in config):
+            if config["dock_mode"] == "1":
                 yuzuConfig.set("System", "use_docked_mode", "1")
                 yuzuConfig.set("System", "use_docked_mode\\default", "true")
-            elif system.config["dock_mode"] == "0":
+            elif config["dock_mode"] == "0":
                 yuzuConfig.set("System", "use_docked_mode", "0")
                 yuzuConfig.set("System", "use_docked_mode\\default", "false")
         else:
@@ -923,7 +937,7 @@ class EdenGenerator(Generator):
         if not yuzuConfig.has_section("Controls"):
             yuzuConfig.add_section("Controls")
 
-        if not system.isOptSet('yuzu_auto_controller_config') or system.config["yuzu_auto_controller_config"] != "0":
+        if not ('yuzu_auto_controller_config' in config) or config["yuzu_auto_controller_config"] != "0":
             #get the evdev->hidraw mapping
             evdev_hidraw = evdev_to_hidraw()
             #get sdllib  hidapi/hidraw + evdev guid
@@ -956,8 +970,8 @@ class EdenGenerator(Generator):
                     guid_port[pad.guid] = guid_port[pad.guid] + 1
 
                 yuzuConfig.set("Controls", player_nb_str + "_type\\default", "false")
-                if system.isOptSet('p{}_pad'.format(nplayer + 1)):
-                    yuzuConfig.set("Controls", player_nb_str + "_type", system.config["p{}_pad".format(nplayer + 1)])
+                if 'p{}_pad'.format(nplayer + 1) in config:
+                    yuzuConfig.set("Controls", player_nb_str + "_type", config["p{}_pad".format(nplayer + 1)])
                 else:
                     yuzuConfig.set("Controls", player_nb_str + "_type", 0)
 
@@ -968,7 +982,7 @@ class EdenGenerator(Generator):
                     yuzuButtonsMapping["button_x"] = "y"
                     yuzuButtonsMapping["button_y"] = "x"
 
-                yuzu_inverse_button = system.config.get('yuzu_inverse_button', 'false').lower() == 'true'
+                yuzu_inverse_button = config.get('yuzu_inverse_button', 'false').lower() == 'true'
                 if yuzu_inverse_button:
                     yuzuButtonsMapping["button_a"] = "b"
                     yuzuButtonsMapping["button_b"] = "a"
@@ -981,9 +995,9 @@ class EdenGenerator(Generator):
 
 
                 for x in yuzuButtonsMapping:
-                    yuzuConfig.set("Controls", player_nb_str + "_" + x, '"{}"'.format(EdenGenerator.setButton(emulator, yuzuButtonsMapping[x], pad.guid, pad.inputs, guid_port[pad.guid])))
+                    yuzuConfig.set("Controls", player_nb_str + "_" + x, '"{}"'.format(Eden.setButton(emulator, yuzuButtonsMapping[x], pad.guid, pad.inputs, guid_port[pad.guid])))
                 for x in yuzuAxisMapping:
-                    yuzuConfig.set("Controls", player_nb_str + "_" + x, '"{}"'.format(EdenGenerator.setAxis(yuzuAxisMapping[x], pad.guid, pad.inputs, guid_port[pad.guid])))
+                    yuzuConfig.set("Controls", player_nb_str + "_" + x, '"{}"'.format(Eden.setAxis(yuzuAxisMapping[x], pad.guid, pad.inputs, guid_port[pad.guid])))
 
                 yuzuConfig.set("Controls", player_nb_str + "_button_screenshot\\default", "false")
                 yuzuConfig.set("Controls", player_nb_str + "_button_screenshot", "[empty]")
@@ -995,8 +1009,8 @@ class EdenGenerator(Generator):
                 yuzuConfig.set("Controls", player_nb_str + "_connected\\default", "false")
 
                 # Vibration
-                if system.isOptSet('yuzu_rumble'):
-                    yuzuConfig.set("Controls", player_nb_str + "_vibration_enabled", system.config["yuzu_rumble"])
+                if ('yuzu_rumble' in config):
+                    yuzuConfig.set("Controls", player_nb_str + "_vibration_enabled", config["yuzu_rumble"])
                     yuzuConfig.set("Controls", player_nb_str + "_vibration_enabled\\default", "false")
                 else:
                     yuzuConfig.set("Controls", player_nb_str + "_vibration_enabled", "true")
@@ -1095,5 +1109,6 @@ class EdenGenerator(Generator):
 
          return ("range:1.000000,deadzone:0.100000,invert_y:+,invert_x:+,offset_y:-0.000000,axis_y:{},offset_x:-0.000000,axis_x:{},guid:{},port:{},engine:sdl").format(inputy, inputx, padGuid, port)
 
-    def getMouseMode(self, config, rom):
+    @property
+    def needs_mouse(self) -> bool:
         return True

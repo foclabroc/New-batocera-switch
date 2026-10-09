@@ -1,0 +1,6 @@
+[batocera_launch.emulators]
+eden-emu = switch_launch.eden:Eden
+eden-pgo = switch_launch.eden:Eden
+eden-nightly = switch_launch.eden:Eden
+citron-emu = switch_launch.eden:Eden
+ryujinx-emu = switch_launch.ryujinx:Ryujinx

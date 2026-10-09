@@ -15,15 +15,18 @@ import uuid
 from shutil import copyfile
 from pathlib import Path
 from typing import TYPE_CHECKING
-from configgen import Command as Command
-from configgen.batoceraPaths import CONFIGS, HOME, ROMS, SAVES, CACHE, mkdir_if_not_exists
-from configgen.controller import generate_sdl_game_controller_config
-from configgen.generators.Generator import Generator
-try:
-    from configgen.utils.configparser import CaseSensitiveRawConfigParser
-except ImportError:
-    from batocera_common.configparser import CaseSensitiveRawConfigParser
-from configgen.input import Input, InputDict, InputMapping
+from batocera_common.configparser import CaseSensitiveRawConfigParser
+from batocera_common.dataclasses import cached_dataclass, cached_property
+from batocera_common.paths import CACHE, CONFIGS, HOME, ROMS, SAVES
+from batocera_launch.command import Command
+from batocera_launch.devices.controller import generate_sdl_game_controller_config
+from batocera_launch.devices.input import Input, InputDict, InputMapping
+from batocera_launch.emulator import Emulator
+from batocera_launch.types import HotkeysContext
+
+
+def mkdir_if_not_exists(path) -> None:
+    Path(path).mkdir(parents=True, exist_ok=True)
 
 os.environ["PYSDL2_DLL_PATH"] = "/userdata/system/switch/configgen/sdl2/"
 os.environ["PATH"] = "/userdata/system/switch/extra/xdgfix:" + os.environ.get("PATH", "")
@@ -34,8 +37,6 @@ from ctypes import create_string_buffer
 
 eslog = logging.getLogger(__name__)
 
-if TYPE_CHECKING:
-    from configgen.types import HotkeysContext
 
 subprocess.run(["batocera-mouse", "show"], check=False)
 
@@ -226,15 +227,32 @@ def list_sdl_gamepads(sdlversion):
     sdl2.SDL_Quit()
 
     return sdl_devices
-class RyujinxGenerator(Generator):
+@cached_dataclass
+class Ryujinx(Emulator):
+    @property
+    def handles_bezels(self) -> bool:
+        return True
 
-    def getHotkeysContext(self) -> HotkeysContext:
+    @cached_property
+    def in_game_ratio(self) -> float:
+        return 16 / 9
+
+    async def prepare_hud(self, command, bezel, /) -> None:
+        # MangoHud ne fonctionne pas avec Ryujinx
+        return None
+
+
+    @cached_property
+    def hotkeygen_context(self) -> HotkeysContext:
         return {
             "name": "ryujinx-emu",
             "keys": { "menu": "KEY_F4"}
         }
 
-    def generate(self, system, rom, playersControllers, metadata, guns, wheels, gameResolution):
+    async def configure(self) -> Command:
+        config = self.config
+        rom = self.rom
+        playersControllers = list(self.controllers)
 
         ryujinx_appimage = "/userdata/system/switch/appimages/ryujinx-emu.AppImage"
         ryujinx_extracted = "/userdata/system/switch/appimages/ryujinx-extracted/usr/bin/Ryujinx"
@@ -359,7 +377,7 @@ class RyujinxGenerator(Generator):
         writelog("Controller mapping before: {}".format(generate_sdl_game_controller_config(playersControllers)))
 
         #Configuration update
-        sdl_mapping = RyujinxGenerator.writeRyujinxConfig(str(CONFIGS) + '/Ryujinx/Config.json', RyujinxConfigFileBefore, RyujinxConfigTemplate, system, playersControllers)
+        sdl_mapping = Ryujinx.writeRyujinxConfig(str(CONFIGS) + '/Ryujinx/Config.json', RyujinxConfigFileBefore, RyujinxConfigTemplate, config, playersControllers)
 
         writelog("Controller mapping after: {}".format(str(sdl_mapping)))
 
@@ -394,10 +412,11 @@ class RyujinxGenerator(Generator):
         else:
             commandArray = [ryujinx_wrapper, ryujinx_extracted, rom]
 
-        return Command.Command(array=commandArray, env=environment)
+        return Command(args=commandArray, env=environment)
 
 
-    def writeRyujinxConfig(RyujinxConfigFile, RyujinxConfigFileBefore, RyujinxConfigTemplateFile, system, playersControllers):
+    @staticmethod
+    def writeRyujinxConfig(RyujinxConfigFile, RyujinxConfigFileBefore, RyujinxConfigTemplateFile, config, playersControllers):
         writelog(RyujinxConfigTemplateFile)
         data = {}
 
@@ -406,61 +425,61 @@ class RyujinxGenerator(Generator):
                 data = json.load(read_file)
 
         #if manual controller configuration, keep current config
-        if system.isOptSet('ryu_auto_controller_config') and system.config["ryu_auto_controller_config"] == "0":
+        if ('ryu_auto_controller_config' in config) and config["ryu_auto_controller_config"] == "0":
             if os.path.exists("/userdata/system/configs/Ryujinx/Config.json"):
                 with open("/userdata/system/configs/Ryujinx/Config.json", "r+") as read_file:
                     current_data = json.load(read_file)
                     data['input_config'] = current_data['input_config']
 
-        if system.isOptSet('res_scale'):
-            data['res_scale'] = int(system.config["res_scale"])
+        if ('res_scale' in config):
+            data['res_scale'] = int(config["res_scale"])
         else:
             data['res_scale'] = 1
 
-        if system.isOptSet('max_anisotropy'):
-            data['max_anisotropy'] = int(system.config["max_anisotropy"])
+        if ('max_anisotropy' in config):
+            data['max_anisotropy'] = int(config["max_anisotropy"])
         else:
             data['max_anisotropy'] = -1 
 
-        if system.isOptSet('aspect_ratio'):
-            data['aspect_ratio'] = system.config["aspect_ratio"]
+        if ('aspect_ratio' in config):
+            data['aspect_ratio'] = config["aspect_ratio"]
         else:
             data['aspect_ratio'] = 'Fixed16x9'
 
-        if system.isOptSet('system_language'):
-            data['system_language'] = system.config["system_language"]
+        if ('system_language' in config):
+            data['system_language'] = config["system_language"]
         else:
             data['system_language'] = 'AmericanEnglish'
 
-        if system.isOptSet('system_region'):
-            data['system_region'] = system.config["system_region"]
+        if ('system_region' in config):
+            data['system_region'] = config["system_region"]
         else:
             data['system_region'] = 'USA'
 
-        if system.isOptSet('ryu_docked_mode'):
-            data['docked_mode'] = bool(int(system.config["ryu_docked_mode"]))
+        if ('ryu_docked_mode' in config):
+            data['docked_mode'] = bool(int(config["ryu_docked_mode"]))
         else:
             data['docked_mode'] = bool(1)
 
         #V-Sync
-        if system.isOptSet('ryu_vsync'):
-            data['enable_vsync'] = bool(int(system.config["ryu_vsync"]))
+        if ('ryu_vsync' in config):
+            data['enable_vsync'] = bool(int(config["ryu_vsync"]))
         else:
             data['enable_vsync'] = bool(1)
 
-        if system.isOptSet('ryu_backend'):
-            data['graphics_backend'] = system.config["ryu_backend"]
+        if ('ryu_backend' in config):
+            data['graphics_backend'] = config["ryu_backend"]
         else:
             data['graphics_backend'] = 'Vulkan'
 
-        if system.isOptSet('ryu_audio_backend'):
-            data['audio_backend'] = system.config["ryu_audio_backend"]
+        if ('ryu_audio_backend' in config):
+            data['audio_backend'] = config["ryu_audio_backend"]
         else:
             data['audio_backend'] = 'OpenAl'
 
         # # Fullscreen mode
-        # if system.isOptSet('fullscreen_mode'):
-            # data['fullscreen_mode'] = bool(int(system.config["fullscreen_mode"]))
+        # if ('fullscreen_mode' in config):
+            # data['fullscreen_mode'] = bool(int(config["fullscreen_mode"]))
         # else:
             # data['fullscreen_mode'] = bool(1)
 
@@ -471,7 +490,7 @@ class RyujinxGenerator(Generator):
 
         sdl_mapping = generate_sdl_game_controller_config(playersControllers)
 
-        if not system.isOptSet('ryu_auto_controller_config') or system.config["ryu_auto_controller_config"] != "0":
+        if not ('ryu_auto_controller_config' in config) or config["ryu_auto_controller_config"] != "0":
             debugcontrollers = True
             sdl_mapping = ""
 
@@ -540,8 +559,8 @@ class RyujinxGenerator(Generator):
                     rumble = {}
                     rumble['strong_rumble'] = 1
                     rumble['weak_rumble'] = 1
-                    if system.isOptSet('ryu_enable_rumble'):
-                        rumble['enable_rumble'] = bool(int(system.config["ryu_enable_rumble"]))
+                    if ('ryu_enable_rumble' in config):
+                        rumble['enable_rumble'] = bool(int(config["ryu_enable_rumble"]))
                     else:
                         rumble['enable_rumble'] = bool(1)
                     rumble['use_hdrumble'] = rumble['enable_rumble']
@@ -580,7 +599,7 @@ class RyujinxGenerator(Generator):
                     right_joycon['button_sr'] = "Unbound"
 
                     #invert based on "Nintendo", like Ryujinx code
-                    ryu_inverse_button = system.config.get('ryu_inverse_button', 'false').lower() == 'true'
+                    ryu_inverse_button = config.get('ryu_inverse_button', 'false').lower() == 'true'
 
                     if controller.real_name and "Nintendo" in controller.real_name:
                         right_joycon['button_x'] = "X"
@@ -626,29 +645,29 @@ class RyujinxGenerator(Generator):
             data['input_config'] = input_config
 
         #Resolution Scale
-        if system.isOptSet('ryu_resolution_scale'):
-            if system.config["ryu_resolution_scale"] in {'1.0', '2.0', '3.0', '4.0', 1.0, 2.0, 3.0, 4.0}:
+        if ('ryu_resolution_scale' in config):
+            if config["ryu_resolution_scale"] in {'1.0', '2.0', '3.0', '4.0', 1.0, 2.0, 3.0, 4.0}:
                 data['res_scale_custom'] = 1
-                if system.config["ryu_resolution_scale"] in {'1.0', 1.0}:
+                if config["ryu_resolution_scale"] in {'1.0', 1.0}:
                     data['res_scale'] = 1
-                if system.config["ryu_resolution_scale"] in {'2.0', 2.0}:
+                if config["ryu_resolution_scale"] in {'2.0', 2.0}:
                     data['res_scale'] = 2
-                if system.config["ryu_resolution_scale"] in {'3.0', 3.0}:
+                if config["ryu_resolution_scale"] in {'3.0', 3.0}:
                     data['res_scale'] = 3
-                if system.config["ryu_resolution_scale"] in {'4.0', 4.0}:
+                if config["ryu_resolution_scale"] in {'4.0', 4.0}:
                     data['res_scale'] = 4
             else:
-                data['res_scale_custom'] = float(system.config["ryu_resolution_scale"])
+                data['res_scale_custom'] = float(config["ryu_resolution_scale"])
                 data['res_scale'] = -1
         else:
             data['res_scale_custom'] = 1
             data['res_scale'] = 1
 
         #Texture Recompression
-        if system.isOptSet('ryu_texture_recompression'):
-            if system.config["ryu_texture_recompression"] in {"true", "1", 1}:
+        if ('ryu_texture_recompression' in config):
+            if config["ryu_texture_recompression"] in {"true", "1", 1}:
                 data['enable_texture_recompression'] = True
-            elif system.config["ryu_texture_recompression"] in {"false", "0", 0}:
+            elif config["ryu_texture_recompression"] in {"false", "0", 0}:
                 data['enable_texture_recompression'] = False
         else:
             data['enable_texture_recompression'] = False
