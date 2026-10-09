@@ -68,6 +68,8 @@ def run_configgen() -> None:
 
 if __name__ == "__main__":
     if _has_configgen():
+        print(f'[SWITCH] Lancement avec Configgen', file=sys.stderr)
         run_configgen()
     else:
+        print(f'[SWITCH] Lancement Batocera Launch', file=sys.stderr)
         run_batocera_launch()

@@ -16,6 +16,9 @@ YUZU_LIKE = {'eden-emu', 'citron-emu', 'eden-pgo', 'eden-nightly'}
 SWITCH_DEFAULTS = Path("/userdata/system/switch/configgen/configgen-defaults.yml")
 SWITCH_ARCH = Path("/userdata/system/switch/configgen/configgen-defaults-arch.yml")
 
+print(f'===========================', file=sys.stderr)
+print(f'[SWITCH] Lancement avec Switch Launcher PY', file=sys.stderr)
+print(f'===========================', file=sys.stderr)
 
 def _log_selection(emulator: str) -> str:
     rom_name = os.path.basename(rom)
@@ -46,8 +49,24 @@ def run_new_api() -> None:
     """Batocera > 43.1."""
     import runpy
 
-    ROM_PATH = rom
-    EMULATOR_OVERRIDE = emulator_name or None
+    # V44 passe ensuite par batocera-launch, qui sélectionne ses plugins sans
+    # appeler configgen.generators.importer.get_generator. Appliquer ici
+    # l'exception de l'application de configuration Ryujinx.
+    rom_path = sys.argv[sys.argv.index("-rom") + 1] if "-rom" in sys.argv else rom
+    emulator_index = sys.argv.index("-emulator") + 1 if "-emulator" in sys.argv else None
+    selected_emulator = sys.argv[emulator_index] if emulator_index is not None else emulator_name
+
+    print(f"[SWITCH] run_new_api rom={rom_path}", file=sys.stderr)
+    print(f"[SWITCH] run_new_api emulator={selected_emulator}", file=sys.stderr)
+
+    if os.path.basename(rom_path) == "ryujinx_config.xci_config":
+        selected_emulator = "ryujinx-emu"
+        if emulator_index is not None:
+            sys.argv[emulator_index] = selected_emulator
+        print("[SWITCH] Configuration Ryujinx détectée, sélection de ryujinx-emu", file=sys.stderr)
+
+    ROM_PATH = rom_path
+    EMULATOR_OVERRIDE = selected_emulator or None
 
     try:
         from generators.edenGenerator import EdenGenerator
