@@ -212,7 +212,8 @@ deploy_if_valid() {
         return 1
     fi
 
-    size_mb=$(du -m "$src" | cut -f1)
+    sync
+    size_mb=$(( $(stat -c%s "$src") / 1048576 ))
 
     if (( size_mb < 20 )); then
         log "ERROR deploy: $name too small (${size_mb}MB) – skipped"
